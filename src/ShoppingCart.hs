@@ -10,7 +10,7 @@ module ShoppingCart
   , TaxAmount(..)
   , TotalPrice(..)
   , TotalPriceWithTax(..)
-  , Cart
+  , CartPrice(..)
   ) where
 
 import Data.Decimal
@@ -29,7 +29,11 @@ data TotalPrice = TotalPrice
   } deriving (Show)
 
 data TotalPriceWithTax = TotalPriceWithTax
-  { getTotPriceWTax :: Decimal
+  { getTotalPriceWithTax :: Decimal
+  } deriving (Show)
+
+data CartPrice = CartPrice
+  { getTotPriceWTax :: TotalPriceWithTax
   , getTotPrice :: TotalPrice
   , getTax :: TaxAmount
   } deriving (Show)
@@ -56,12 +60,12 @@ privateTotalPrice cart = TotalPrice $ price (foldl (<>) mempty (products cart))
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
 
-totalPriceWithTaxes :: Cart -> Decimal -> TotalPriceWithTax
+totalPriceWithTaxes :: Cart -> Decimal -> CartPrice
 totalPriceWithTaxes cart tax =
   let tp = privateTotalPrice cart
       taxAmount = privateTaxAmount tp tax
-      tpWithTax = roundTo 2 $ (getTotalPrice tp) + (getTaxAmount taxAmount)
-  in TotalPriceWithTax tpWithTax tp taxAmount
+      tpWithTax = TotalPriceWithTax $ roundTo 2 $ (getTotalPrice tp) + (getTaxAmount taxAmount)
+  in CartPrice tpWithTax tp taxAmount
 
 instance Semigroup Product where
   (<>) :: Product -> Product -> Product

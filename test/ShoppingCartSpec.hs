@@ -18,7 +18,7 @@ spec =
       it "returns an empty cart" $ do
         let emptyCart = createAnEmptyCart
         numberOfProducts emptyCart `shouldBe` 0
-        getTotPriceWTax (totalPriceWithTaxes emptyCart 0) `shouldBe` 0
+        (getTotalPriceWithTax . getTotPriceWTax) (totalPriceWithTaxes emptyCart 0) `shouldBe` 0
     describe "Adding 5 DoveSoaps to an emptycart" $ do
       it " return a cart with 5 dove soaps" $ do
         let emptyCart = createAnEmptyCart
@@ -26,7 +26,7 @@ spec =
         let quantity = 5
         let newCart = addProducts emptyCart doveProduct quantity
         numberOfProducts newCart `shouldBe` quantity
-        getTotPriceWTax (totalPriceWithTaxes newCart 0) `shouldBe` 199.95
+        (getTotalPriceWithTax . getTotPriceWTax) (totalPriceWithTaxes newCart 0) `shouldBe` 199.95
     describe "Adding 5 DoveSoaps and add 3 more to an emptycart" $ do
       it " return a cart with 8 dove soaps" $ do
         let emptyCart = createAnEmptyCart
@@ -35,7 +35,7 @@ spec =
         let newCart = addProducts emptyCart doveProduct quantity
         let finalCart = addProducts newCart doveProduct 3
         numberOfProducts finalCart `shouldBe` quantity + 3
-        getTotPriceWTax (totalPriceWithTaxes finalCart 0) `shouldBe` 319.92
+        (getTotalPriceWithTax . getTotPriceWTax) (totalPriceWithTaxes finalCart 0) `shouldBe` 319.92
     describe "Adding 2 DoveSoaps and 2 Axe Deo more to an emptycart" $ do
       it " return a cart with 4 products" $ do
         let emptyCart = createAnEmptyCart
@@ -47,5 +47,5 @@ spec =
         let finalCart = addProducts newCart axeDeo quantity
         let testableAmounts = totalPriceWithTaxes finalCart taxRate
         numberOfProducts finalCart `shouldBe` quantity + quantity
-        (getTotPriceWTax testableAmounts) `shouldBe` 314.96
-        getTaxAmount (getTax testableAmounts) `shouldBe` 35.00
+        (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 314.96
+        (getTaxAmount . getTax) testableAmounts `shouldBe` 35.00
