@@ -24,6 +24,8 @@ dependencies:
 - hspec
 - QuickCheck
 - Decimal
+- hashmap
+- hashable
 
 library:
   source-dirs: src

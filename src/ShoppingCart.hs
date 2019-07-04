@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module ShoppingCart
@@ -14,25 +16,38 @@ module ShoppingCart
   , CartPrice(..)
   , PrdCore(..)
   , Prd(..)
+  , Offer(..)
   ) where
 
 import Data.Decimal
+import Data.HashMap
+import Data.Hashable
+import GHC.Generics
 
 data Offer = BuyXGetYFree
   { x :: Int
   , y :: Int
-  } deriving (Show)
+  } deriving (Show, Generic)
+
+instance Hashable Offer
 
 data PrdCore = PrdCore
   { rate :: Decimal
   , off :: Maybe Offer
-  } deriving (Show)
+  } deriving (Show, Generic)
+
+instance Hashable Decimal where
+  hashWithSalt s x = s + hash (decimalMantissa x)
+
+instance Hashable PrdCore
 
 data Prd
   = DoveSoap { prd :: PrdCore}
   | AxeDeo { prd :: PrdCore}
   | NilProduct { prd :: PrdCore}
-  deriving (Show)
+  deriving (Show, Generic)
+
+instance Hashable Prd
 
 data Product = Product
   { name :: String
@@ -75,7 +90,7 @@ numberOfProducts :: Cart -> Int
 numberOfProducts = length . products
 
 addProducts :: Cart -> Prd -> Int -> Cart
-addProducts cart product quantity = Cart ((products cart) ++ (replicate quantity product))
+addProducts cart product quantity = Cart (products cart ++ replicate quantity product)
 
 privateTotalPrice :: Cart -> TotalPrice
 privateTotalPrice cart = TotalPrice $ (rate . prd) (foldl (<>) mempty (products cart))
@@ -87,7 +102,7 @@ totalPriceWithTaxes :: Cart -> Decimal -> CartPrice
 totalPriceWithTaxes cart tax =
   let tp = privateTotalPrice cart
       taxAmount = privateTaxAmount tp tax
-      tpWithTax = TotalPriceWithTax $ roundTo 2 $ (getTotalPrice tp) + (getTaxAmount taxAmount)
+      tpWithTax = TotalPriceWithTax $ roundTo 2 $ getTotalPrice tp + getTaxAmount taxAmount
   in CartPrice tpWithTax tp taxAmount
 
 instance Semigroup Prd where
