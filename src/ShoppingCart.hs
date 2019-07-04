@@ -40,15 +40,15 @@ data Product = Product
   , offer :: Maybe Offer
   } deriving (Show)
 
-data TaxAmount = TaxAmount
+newtype TaxAmount = TaxAmount
   { getTaxAmount :: Decimal
   } deriving (Show)
 
-data TotalPrice = TotalPrice
+newtype TotalPrice = TotalPrice
   { getTotalPrice :: Decimal
   } deriving (Show)
 
-data TotalPriceWithTax = TotalPriceWithTax
+newtype TotalPriceWithTax = TotalPriceWithTax
   { getTotalPriceWithTax :: Decimal
   } deriving (Show)
 
@@ -64,7 +64,7 @@ createDoveSoapProduct rate offer = DoveSoap (PrdCore rate offer)
 createAxeDeo :: Decimal -> Maybe Offer -> Prd
 createAxeDeo rate offer = AxeDeo (PrdCore rate offer)
 
-data Cart = Cart
+newtype Cart = Cart
   { products :: [Prd]
   } deriving (Show)
 
