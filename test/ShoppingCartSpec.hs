@@ -18,6 +18,7 @@ spec =
       it "returns an empty cart" $ do
         let emptyCart = createAnEmptyCart
         numberOfProducts emptyCart `shouldBe` 0
+        getTotPriceWTax (totalPriceWithTaxes emptyCart 0) `shouldBe` 0
     describe "Adding 5 DoveSoaps to an emptycart" $ do
       it " return a cart with 5 dove soaps" $ do
         let emptyCart = createAnEmptyCart

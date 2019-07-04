@@ -53,7 +53,7 @@ addProducts cart product quantity = Cart ((products cart) ++ (replicate quantity
 privateTotalPrice :: Cart -> TotalPrice
 privateTotalPrice cart = TotalPrice $ price (foldl (<>) mempty (products cart))
 
-privateTaxAmount :: TotalPrice -> TaxAmount
+privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
 
 totalPriceWithTaxes :: Cart -> Decimal -> TotalPriceWithTax
