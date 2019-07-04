@@ -23,6 +23,8 @@ dependencies:
 - base >= 4.7 && < 5
 - hspec
 - QuickCheck
+- Decimal
+
 library:
   source-dirs: src
 

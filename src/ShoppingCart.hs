@@ -2,12 +2,14 @@
 
 module ShoppingCart where
 
+import Data.Decimal
+
 data Product = Product
   { name :: String
-  , price :: Int
+  , price :: Decimal
   } deriving (Show)
 
-createAProduct :: String -> Int -> Product
+createAProduct :: String -> Decimal -> Product
 createAProduct = Product
 
 data Cart = Cart
@@ -23,7 +25,7 @@ numberOfProducts = length . products
 addProducts :: Cart -> Product -> Int -> Cart
 addProducts cart product quantity = Cart ((products cart) ++ (replicate quantity product))
 
-totalPrice :: Cart -> Int
+totalPrice :: Cart -> Decimal
 totalPrice cart = price (foldl (<>) mempty (products cart))
 
 instance Semigroup Product where
@@ -32,4 +34,4 @@ instance Semigroup Product where
 
 instance Monoid Product where
   mempty :: Product
-  mempty = Product "" 0
+  mempty = Product "" 0.0
