@@ -27,14 +27,14 @@ import GHC.Generics
 data Offer = BuyXGetYFree
   { x :: Int
   , y :: Int
-  } deriving (Show, Generic)
+  } deriving (Show, Generic, Eq, Ord)
 
 instance Hashable Offer
 
 data PrdCore = PrdCore
   { rate :: Decimal
   , off :: Maybe Offer
-  } deriving (Show, Generic)
+  } deriving (Show, Generic, Eq, Ord)
 
 instance Hashable Decimal where
   hashWithSalt s x = s + hash (decimalMantissa x)
@@ -45,7 +45,7 @@ data Prd
   = DoveSoap { prd :: PrdCore}
   | AxeDeo { prd :: PrdCore}
   | NilProduct { prd :: PrdCore}
-  deriving (Show, Generic)
+  deriving (Show, Generic, Eq, Ord)
 
 instance Hashable Prd
 
@@ -80,20 +80,36 @@ createAxeDeo :: Decimal -> Maybe Offer -> Prd
 createAxeDeo rate offer = AxeDeo (PrdCore rate offer)
 
 newtype Cart = Cart
-  { products :: [Prd]
+  { products :: Map Prd Int
   } deriving (Show)
 
 createAnEmptyCart :: Cart
-createAnEmptyCart = Cart []
+createAnEmptyCart = Cart empty
 
 numberOfProducts :: Cart -> Int
-numberOfProducts = length . products
+numberOfProducts = sum . elems . products
+
+updateProductQuantity :: Prd -> Int -> Int -> Int
+updateProductQuantity prd newQuantity oldQuantity = newQuantity + oldQuantity
 
 addProducts :: Cart -> Prd -> Int -> Cart
-addProducts cart product quantity = Cart (products cart ++ replicate quantity product)
+addProducts cart product quantity =
+  Cart (insertWithKey updateProductQuantity product quantity (products cart))
+
+applyOffersToProducts :: Cart -> (Map Prd Int, Map Prd Int)
+applyOffersToProducts cart = partitionWithKey f (products cart)
+
+f :: Prd -> Int -> Bool
+f product quantity
+  | off (prd product) == Nothing = True
+  | otherwise = undefined
 
 privateTotalPrice :: Cart -> TotalPrice
-privateTotalPrice cart = TotalPrice $ (rate . prd) (foldl (<>) mempty (products cart))
+privateTotalPrice cart = TotalPrice $ foldWithKey accumulatePrice 0.0 (products cart)
+
+accumulatePrice :: Prd -> Int -> Decimal -> Decimal
+accumulatePrice product quantity accumulator =
+  accumulator + ((fromIntegral quantity) * (rate (prd product)))
 
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
@@ -104,11 +120,3 @@ totalPriceWithTaxes cart tax =
       taxAmount = privateTaxAmount tp tax
       tpWithTax = TotalPriceWithTax $ roundTo 2 $ getTotalPrice tp + getTaxAmount taxAmount
   in CartPrice tpWithTax tp taxAmount
-
-instance Semigroup Prd where
-  (<>) :: Prd -> Prd -> Prd
-  (<>) prd1 prd2 = NilProduct (PrdCore (rate (prd prd1) + rate (prd prd2)) Nothing)
-
-instance Monoid Prd where
-  mempty :: Prd
-  mempty = NilProduct (PrdCore 0.0 Nothing)
