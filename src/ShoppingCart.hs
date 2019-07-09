@@ -1,7 +1,10 @@
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 
 module ShoppingCart
-  ( createAProduct
+  ( createDoveSoapProduct
+  , createAxeDeo
   , createAnEmptyCart
   , numberOfProducts
   , addProducts
@@ -11,24 +14,56 @@ module ShoppingCart
   , TotalPrice(..)
   , TotalPriceWithTax(..)
   , CartPrice(..)
+  , PrdCore(..)
+  , Prd(..)
+  , Offer(..)
   ) where
 
 import Data.Decimal
+import Data.HashMap
+import Data.Hashable
+import GHC.Generics
+
+data Offer = BuyXGetYFree
+  { x :: Int
+  , y :: Int
+  } deriving (Show, Generic, Eq, Ord)
+
+instance Hashable Offer
+
+data PrdCore = PrdCore
+  { rate :: Decimal
+  , off :: Maybe Offer
+  } deriving (Show, Generic, Eq, Ord)
+
+instance Hashable Decimal where
+  hashWithSalt s x = s + hash (decimalMantissa x)
+
+instance Hashable PrdCore
+
+data Prd
+  = DoveSoap { prd :: PrdCore}
+  | AxeDeo { prd :: PrdCore}
+  | NilProduct { prd :: PrdCore}
+  deriving (Show, Generic, Eq, Ord)
+
+instance Hashable Prd
 
 data Product = Product
   { name :: String
   , price :: Decimal
+  , offer :: Maybe Offer
   } deriving (Show)
 
-data TaxAmount = TaxAmount
+newtype TaxAmount = TaxAmount
   { getTaxAmount :: Decimal
   } deriving (Show)
 
-data TotalPrice = TotalPrice
+newtype TotalPrice = TotalPrice
   { getTotalPrice :: Decimal
   } deriving (Show)
 
-data TotalPriceWithTax = TotalPriceWithTax
+newtype TotalPriceWithTax = TotalPriceWithTax
   { getTotalPriceWithTax :: Decimal
   } deriving (Show)
 
@@ -36,41 +71,80 @@ data CartPrice = CartPrice
   { getTotPriceWTax :: TotalPriceWithTax
   , getTotPrice :: TotalPrice
   , getTax :: TaxAmount
+  , getTotalDiscountPrice :: Decimal
   } deriving (Show)
 
-createAProduct :: String -> Decimal -> Product
-createAProduct = Product
+--  , getDiscountPrice :: Decimal
+createDoveSoapProduct :: Decimal -> Maybe Offer -> Prd
+createDoveSoapProduct rate offer = DoveSoap (PrdCore rate offer)
 
-data Cart = Cart
-  { products :: [Product]
+createAxeDeo :: Decimal -> Maybe Offer -> Prd
+createAxeDeo rate offer = AxeDeo (PrdCore rate offer)
+
+newtype Cart = Cart
+  { products :: Map Prd Int
   } deriving (Show)
 
 createAnEmptyCart :: Cart
-createAnEmptyCart = Cart []
+createAnEmptyCart = Cart empty
 
 numberOfProducts :: Cart -> Int
-numberOfProducts = length . products
+numberOfProducts = sum . elems . products
 
-addProducts :: Cart -> Product -> Int -> Cart
-addProducts cart product quantity = Cart ((products cart) ++ (replicate quantity product))
+updateProductQuantity :: Prd -> Int -> Int -> Int
+updateProductQuantity prd newQuantity oldQuantity = newQuantity + oldQuantity
 
+addProducts :: Cart -> Prd -> Int -> Cart
+addProducts cart product quantity =
+  Cart (insertWithKey updateProductQuantity product quantity (products cart))
+
+applyOffersToProducts :: Cart -> Map Prd (Int, Int)
+applyOffersToProducts cart = mapWithKey calculateCorrectQuantities (products cart)
+
+calculateCorrectQuantities :: Prd -> Int -> (Int, Int)
+calculateCorrectQuantities product@(DoveSoap (PrdCore rate Nothing)) quantity = (quantity, 0)
+calculateCorrectQuantities product@(AxeDeo (PrdCore rate Nothing)) quantity = (quantity, 0)
+calculateCorrectQuantities product@(DoveSoap (PrdCore rate (Just (BuyXGetYFree x y)))) quantity =
+  let offerQuantity = div quantity (x + y)
+      quantityAfterOffer = quantity - offerQuantity
+  in (quantityAfterOffer, offerQuantity)
+calculateCorrectQuantities product@(AxeDeo (PrdCore rate (Just (BuyXGetYFree x y)))) quantity =
+  let offerQuantity = div quantity (x + y)
+      quantityAfterOffer = quantity - offerQuantity
+  in (quantityAfterOffer, offerQuantity)
+
+separateIntoTwoCarts :: Map Prd (Int, Int) -> (Cart, Cart)
+separateIntoTwoCarts mapWithCombinedQuantities =
+  let (quantityAfterOfferCart, offerQuantityCart) =
+        foldWithKey addRelevantQuantities (empty, empty) mapWithCombinedQuantities
+  in (Cart quantityAfterOfferCart, Cart offerQuantityCart)
+
+addRelevantQuantities :: Prd
+                      -> (Int, Int)
+                      -> (Map Prd Int, Map Prd Int)
+                      -> (Map Prd Int, Map Prd Int)
+addRelevantQuantities product (quantityAfterOffer, offerQuantity) (quantityAfterOfferMap, offerQuantityMap) =
+  ( (insert product quantityAfterOffer quantityAfterOfferMap)
+  , (insert product offerQuantity offerQuantityMap))
+
+--  | off (prd product) == Nothing = True
+--  | otherwise = let offer = case (off (prd product)) of
 privateTotalPrice :: Cart -> TotalPrice
-privateTotalPrice cart = TotalPrice $ price (foldl (<>) mempty (products cart))
+privateTotalPrice cart = TotalPrice $ foldWithKey accumulatePrice 0.0 (products cart)
+
+accumulatePrice :: Prd -> Int -> Decimal -> Decimal
+accumulatePrice product quantity accumulator =
+  accumulator + ((fromIntegral quantity) * (rate (prd product)))
 
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
 
 totalPriceWithTaxes :: Cart -> Decimal -> CartPrice
 totalPriceWithTaxes cart tax =
-  let tp = privateTotalPrice cart
+  let (quantityAfterOfferCart, offerQuantityCart) =
+        separateIntoTwoCarts (applyOffersToProducts cart)
+      tp = privateTotalPrice quantityAfterOfferCart
       taxAmount = privateTaxAmount tp tax
-      tpWithTax = TotalPriceWithTax $ roundTo 2 $ (getTotalPrice tp) + (getTaxAmount taxAmount)
-  in CartPrice tpWithTax tp taxAmount
-
-instance Semigroup Product where
-  (<>) :: Product -> Product -> Product
-  (<>) prd1 prd2 = Product "" (price prd1 + price prd2)
-
-instance Monoid Product where
-  mempty :: Product
-  mempty = Product "" 0.0
+      tpWithTax = TotalPriceWithTax $ roundTo 2 $ getTotalPrice tp + getTaxAmount taxAmount
+      totalDiscountPrice = getTotalPrice (privateTotalPrice offerQuantityCart)
+  in CartPrice tpWithTax tp taxAmount totalDiscountPrice
