@@ -60,5 +60,5 @@ spec =
         let testableAmounts = totalPriceWithTaxes finalCart taxRate
         numberOfProducts finalCart `shouldBe` quantity
         (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 89.98
-        --(getDiscount . getDisc) testableAmounts `shouldBe` 39.99
+        getTotalDiscountPrice testableAmounts `shouldBe` 39.99
         (getTaxAmount . getTax) testableAmounts `shouldBe` 10.00
