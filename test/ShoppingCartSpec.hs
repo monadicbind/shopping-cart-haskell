@@ -103,3 +103,16 @@ spec =
         (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 67.48
         getTotalDiscountPrice testableAmounts `shouldBe` 20.00
         (getTaxAmount . getTax) testableAmounts `shouldBe` 7.50
+    describe "Adding 2 MittalMagics with a Buy1Get10PercentOff offer to the cart" $
+      it " return a cart with 2 products" $ do
+        let emptyCart = createAnEmptyCart
+        let buy1get10PercentOff = BuyXGetYPercentOff 1 10
+        let mm = createAProduct "Mittal Magic" 10 (Just buy1get10PercentOff)
+        let quantityDS = 2
+        let finalCart = addProducts emptyCart mm quantityDS
+        let taxRate = 12.5
+        let testableAmounts = totalPriceWithTaxes finalCart taxRate
+        numberOfProducts finalCart `shouldBe` 2
+        (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 21.38
+        getTotalDiscountPrice testableAmounts `shouldBe` 1.00
+        (getTaxAmount . getTax) testableAmounts `shouldBe` 2.38
