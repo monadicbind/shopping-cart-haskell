@@ -21,10 +21,12 @@ import Data.HashMap
 import Data.Hashable
 import GHC.Generics
 
-data Offer = BuyXGetYFree
-  { x :: Int
-  , y :: Int
-  } deriving (Show, Generic, Eq, Ord)
+data Offer
+  = BuyXGetYFree { x :: Int
+                ,  y :: Int}
+  | BuyXGetYPercentOff { x :: Int
+                      ,  percent :: Decimal}
+  deriving (Show, Generic, Eq, Ord)
 
 instance Hashable Offer
 
@@ -78,34 +80,22 @@ addProducts :: Cart -> Product -> Int -> Cart
 addProducts cart product quantity =
   Cart (insertWithKey updateProductQuantity product quantity (products cart))
 
-applyOffersToProducts :: Cart -> Map Product (Int, Int)
+applyOffersToProducts :: Cart -> Map Product (Decimal, Decimal)
 applyOffersToProducts cart = mapWithKey calculateCorrectQuantities (products cart)
 
-calculateCorrectQuantities :: Product -> Int -> (Int, Int)
-calculateCorrectQuantities (Product _ _ Nothing) quantity = (quantity, 0)
+calculateCorrectQuantities :: Product -> Int -> (Decimal, Decimal)
+calculateCorrectQuantities (Product _ cost Nothing) quantity = (fromIntegral quantity * cost, 0)
 calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYFree x y))) quantity =
   let offerQuantity = div quantity (x + y)
       quantityAfterOffer = quantity - offerQuantity
-  in (quantityAfterOffer, offerQuantity)
-
-separateIntoTwoCarts :: Map Product (Int, Int) -> (Cart, Cart)
-separateIntoTwoCarts mapWithCombinedQuantities =
-  let (quantityAfterOfferCart, offerQuantityCart) =
-        foldWithKey addRelevantQuantities (empty, empty) mapWithCombinedQuantities
-  in (Cart quantityAfterOfferCart, Cart offerQuantityCart)
-
-addRelevantQuantities :: Product
-                      -> (Int, Int)
-                      -> (Map Product Int, Map Product Int)
-                      -> (Map Product Int, Map Product Int)
-addRelevantQuantities product (quantityAfterOffer, offerQuantity) (quantityAfterOfferMap, offerQuantityMap) =
-  ( insert product quantityAfterOffer quantityAfterOfferMap
-  , insert product offerQuantity offerQuantityMap)
-
---  | off (prd product) == Nothing = True
---  | otherwise = let offer = case (off (prd product)) of
-privateTotalPrice :: Cart -> TotalPrice
-privateTotalPrice cart = TotalPrice $ foldWithKey accumulatePrice 0.0 (products cart)
+  in (fromIntegral quantityAfterOffer * rate, fromIntegral offerQuantity * rate)
+calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYPercentOff x y))) quantity =
+  let offerQuantity = div quantity (x + 1)
+      quantityAfterOffer = quantity - offerQuantity
+      discountedPrice = fromIntegral offerQuantity * rate * (y / 100)
+      remainingPriceToBePaid = fromIntegral offerQuantity * rate * ((100 - y) / 100)
+      totalPriceAfterDiscounts = fromIntegral quantityAfterOffer * rate + remainingPriceToBePaid
+  in (totalPriceAfterDiscounts, discountedPrice)
 
 accumulatePrice :: Product -> Int -> Decimal -> Decimal
 accumulatePrice product quantity accumulator = accumulator + (fromIntegral quantity * price product)
@@ -115,10 +105,22 @@ privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax)
 
 totalPriceWithTaxes :: Cart -> Decimal -> CartPrice
 totalPriceWithTaxes cart tax =
-  let (quantityAfterOfferCart, offerQuantityCart) =
-        separateIntoTwoCarts (applyOffersToProducts cart)
-      tp = privateTotalPrice quantityAfterOfferCart
-      taxAmount = privateTaxAmount tp tax
-      tpWithTax = TotalPriceWithTax $ roundTo 2 $ getTotalPrice tp + getTaxAmount taxAmount
-      totalDiscountPrice = getTotalPrice (privateTotalPrice offerQuantityCart)
-  in CartPrice tpWithTax tp taxAmount totalDiscountPrice
+  let (totalPriceAfterDiscounts, totalDiscountedPrice) =
+        foldl (<>) (0.0, 0.0) (elems (applyOffersToProducts cart))
+      taxAmount = privateTaxAmount (TotalPrice totalPriceAfterDiscounts) tax
+      tpWithTax =
+        TotalPriceWithTax $
+        roundTo 2 $ getTotalPrice (TotalPrice totalPriceAfterDiscounts) + getTaxAmount taxAmount
+  in CartPrice
+       tpWithTax
+       (TotalPrice totalPriceAfterDiscounts)
+       taxAmount
+       (roundTo 2 totalDiscountedPrice)
+
+instance Semigroup Decimal where
+  (<>) :: Decimal -> Decimal -> Decimal
+  (<>) = (+)
+
+instance Monoid Decimal where
+  mempty :: Decimal
+  mempty = 0.0

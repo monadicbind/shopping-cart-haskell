@@ -90,3 +90,16 @@ spec =
         (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 292.46
         getTotalDiscountPrice testableAmounts `shouldBe` 39.99
         (getTaxAmount . getTax) testableAmounts `shouldBe` 32.50
+    describe "Adding 2 DoveSoaps with a Buy1Get50PercentOff offer to the cart" $
+      it " return a cart with 2 products" $ do
+        let emptyCart = createAnEmptyCart
+        let buy1get50PercentOff = BuyXGetYPercentOff 1 50
+        let doveProduct = createAProduct "Dove Soap" 39.99 (Just buy1get50PercentOff)
+        let quantityDS = 2
+        let finalCart = addProducts emptyCart doveProduct quantityDS
+        let taxRate = 12.5
+        let testableAmounts = totalPriceWithTaxes finalCart taxRate
+        numberOfProducts finalCart `shouldBe` 2
+        (getTotalPriceWithTax . getTotPriceWTax) testableAmounts `shouldBe` 67.48
+        getTotalDiscountPrice testableAmounts `shouldBe` 20.00
+        (getTaxAmount . getTax) testableAmounts `shouldBe` 7.50
