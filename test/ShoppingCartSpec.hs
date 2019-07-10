@@ -11,9 +11,9 @@ spec =
   describe "Shopping Cart" $ do
     describe "Create a new product" $
       it "returns a product called with name Dove Soap" $ do
-        let doveProduct = createDoveSoapProduct 39.99 Nothing
-      --name doveProduct `shouldBe` "DoveSoap"
-        rate (prd doveProduct) `shouldBe` 39.99
+        let doveProduct = createAProduct "Dove Soap" 39.99 Nothing
+        name doveProduct `shouldBe` "Dove Soap"
+        price doveProduct `shouldBe` 39.99
     describe "Create a new empty cart" $
       it "returns an empty cart" $ do
         let emptyCart = createAnEmptyCart
@@ -22,7 +22,7 @@ spec =
     describe "Adding 5 DoveSoaps to an emptycart" $
       it " return a cart with 5 dove soaps" $ do
         let emptyCart = createAnEmptyCart
-        let doveProduct = createDoveSoapProduct 39.99 Nothing
+        let doveProduct = createAProduct "Dove Soap" 39.99 Nothing
         let quantity = 5
         let newCart = addProducts emptyCart doveProduct quantity
         numberOfProducts newCart `shouldBe` quantity
@@ -30,7 +30,7 @@ spec =
     describe "Adding 5 DoveSoaps and add 3 more to an emptycart" $
       it " return a cart with 8 dove soaps" $ do
         let emptyCart = createAnEmptyCart
-        let doveProduct = createDoveSoapProduct 39.99 Nothing
+        let doveProduct = createAProduct "Dove Soap" 39.99 Nothing
         let quantity = 5
         let newCart = addProducts emptyCart doveProduct quantity
         let finalCart = addProducts newCart doveProduct 3
@@ -39,10 +39,10 @@ spec =
     describe "Adding 2 DoveSoaps and 2 Axe Deo more to an emptycart" $
       it " return a cart with 4 products" $ do
         let emptyCart = createAnEmptyCart
-        let doveProduct = createDoveSoapProduct 39.99 Nothing
+        let doveProduct = createAProduct "Dove Soap" 39.99 Nothing
         let quantity = 2
         let newCart = addProducts emptyCart doveProduct quantity
-        let axeDeo = createAxeDeo 99.99 Nothing
+        let axeDeo = createAProduct "Axe Deo" 99.99 Nothing
         let taxRate = 12.5
         let finalCart = addProducts newCart axeDeo quantity
         let testableAmounts = totalPriceWithTaxes finalCart taxRate
@@ -53,7 +53,7 @@ spec =
       it " return a cart with 3 products" $ do
         let emptyCart = createAnEmptyCart
         let buy2get1 = BuyXGetYFree 2 1
-        let doveProduct = createDoveSoapProduct 39.99 (Just buy2get1)
+        let doveProduct = createAProduct "Dove Soap" 39.99 (Just buy2get1)
         let quantity = 3
         let finalCart = addProducts emptyCart doveProduct quantity
         let taxRate = 12.5
@@ -66,7 +66,7 @@ spec =
       it " return a cart with 5 products" $ do
         let emptyCart = createAnEmptyCart
         let buy2get1 = BuyXGetYFree 2 1
-        let doveProduct = createDoveSoapProduct 39.99 (Just buy2get1)
+        let doveProduct = createAProduct "Dove Soap" 39.99 (Just buy2get1)
         let quantity = 5
         let finalCart = addProducts emptyCart doveProduct quantity
         let taxRate = 12.5
@@ -79,11 +79,11 @@ spec =
       it " return a cart with 5 products" $ do
         let emptyCart = createAnEmptyCart
         let buy2get1 = BuyXGetYFree 2 1
-        let doveProduct = createDoveSoapProduct 39.99 (Just buy2get1)
+        let doveProduct = createAProduct "Dove Soap" 39.99 (Just buy2get1)
         let quantityDS = 3
         let dsCart = addProducts emptyCart doveProduct quantityDS
         let taxRate = 12.5
-        let axeDeo = createAxeDeo 89.99 Nothing
+        let axeDeo = createAProduct "Axe Deo" 89.99 Nothing
         let finalCart = addProducts dsCart axeDeo 2
         let testableAmounts = totalPriceWithTaxes finalCart taxRate
         numberOfProducts finalCart `shouldBe` 5

@@ -3,8 +3,7 @@
 {-# LANGUAGE InstanceSigs #-}
 
 module ShoppingCart
-  ( createDoveSoapProduct
-  , createAxeDeo
+  ( createAProduct
   , createAnEmptyCart
   , numberOfProducts
   , addProducts
@@ -14,8 +13,6 @@ module ShoppingCart
   , TotalPrice(..)
   , TotalPriceWithTax(..)
   , CartPrice(..)
-  , PrdCore(..)
-  , Prd(..)
   , Offer(..)
   ) where
 
@@ -31,29 +28,16 @@ data Offer = BuyXGetYFree
 
 instance Hashable Offer
 
-data PrdCore = PrdCore
-  { rate :: Decimal
-  , off :: Maybe Offer
-  } deriving (Show, Generic, Eq, Ord)
-
 instance Hashable Decimal where
   hashWithSalt s x = s + hash (decimalMantissa x)
-
-instance Hashable PrdCore
-
-data Prd
-  = DoveSoap { prd :: PrdCore}
-  | AxeDeo { prd :: PrdCore}
-  | NilProduct { prd :: PrdCore}
-  deriving (Show, Generic, Eq, Ord)
-
-instance Hashable Prd
 
 data Product = Product
   { name :: String
   , price :: Decimal
   , offer :: Maybe Offer
-  } deriving (Show)
+  } deriving (Show, Generic, Eq, Ord)
+
+instance Hashable Product
 
 newtype TaxAmount = TaxAmount
   { getTaxAmount :: Decimal
@@ -74,15 +58,11 @@ data CartPrice = CartPrice
   , getTotalDiscountPrice :: Decimal
   } deriving (Show)
 
---  , getDiscountPrice :: Decimal
-createDoveSoapProduct :: Decimal -> Maybe Offer -> Prd
-createDoveSoapProduct rate offer = DoveSoap (PrdCore rate offer)
-
-createAxeDeo :: Decimal -> Maybe Offer -> Prd
-createAxeDeo rate offer = AxeDeo (PrdCore rate offer)
+createAProduct :: String -> Decimal -> Maybe Offer -> Product
+createAProduct = Product
 
 newtype Cart = Cart
-  { products :: Map Prd Int
+  { products :: Map Product Int
   } deriving (Show)
 
 createAnEmptyCart :: Cart
@@ -91,38 +71,33 @@ createAnEmptyCart = Cart empty
 numberOfProducts :: Cart -> Int
 numberOfProducts = sum . elems . products
 
-updateProductQuantity :: Prd -> Int -> Int -> Int
+updateProductQuantity :: Product -> Int -> Int -> Int
 updateProductQuantity prd newQuantity oldQuantity = newQuantity + oldQuantity
 
-addProducts :: Cart -> Prd -> Int -> Cart
+addProducts :: Cart -> Product -> Int -> Cart
 addProducts cart product quantity =
   Cart (insertWithKey updateProductQuantity product quantity (products cart))
 
-applyOffersToProducts :: Cart -> Map Prd (Int, Int)
+applyOffersToProducts :: Cart -> Map Product (Int, Int)
 applyOffersToProducts cart = mapWithKey calculateCorrectQuantities (products cart)
 
-calculateCorrectQuantities :: Prd -> Int -> (Int, Int)
-calculateCorrectQuantities product@(DoveSoap (PrdCore rate Nothing)) quantity = (quantity, 0)
-calculateCorrectQuantities product@(AxeDeo (PrdCore rate Nothing)) quantity = (quantity, 0)
-calculateCorrectQuantities product@(DoveSoap (PrdCore rate (Just (BuyXGetYFree x y)))) quantity =
-  let offerQuantity = div quantity (x + y)
-      quantityAfterOffer = quantity - offerQuantity
-  in (quantityAfterOffer, offerQuantity)
-calculateCorrectQuantities product@(AxeDeo (PrdCore rate (Just (BuyXGetYFree x y)))) quantity =
+calculateCorrectQuantities :: Product -> Int -> (Int, Int)
+calculateCorrectQuantities (Product _ _ Nothing) quantity = (quantity, 0)
+calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYFree x y))) quantity =
   let offerQuantity = div quantity (x + y)
       quantityAfterOffer = quantity - offerQuantity
   in (quantityAfterOffer, offerQuantity)
 
-separateIntoTwoCarts :: Map Prd (Int, Int) -> (Cart, Cart)
+separateIntoTwoCarts :: Map Product (Int, Int) -> (Cart, Cart)
 separateIntoTwoCarts mapWithCombinedQuantities =
   let (quantityAfterOfferCart, offerQuantityCart) =
         foldWithKey addRelevantQuantities (empty, empty) mapWithCombinedQuantities
   in (Cart quantityAfterOfferCart, Cart offerQuantityCart)
 
-addRelevantQuantities :: Prd
+addRelevantQuantities :: Product
                       -> (Int, Int)
-                      -> (Map Prd Int, Map Prd Int)
-                      -> (Map Prd Int, Map Prd Int)
+                      -> (Map Product Int, Map Product Int)
+                      -> (Map Product Int, Map Product Int)
 addRelevantQuantities product (quantityAfterOffer, offerQuantity) (quantityAfterOfferMap, offerQuantityMap) =
   ( (insert product quantityAfterOffer quantityAfterOfferMap)
   , (insert product offerQuantity offerQuantityMap))
@@ -132,9 +107,9 @@ addRelevantQuantities product (quantityAfterOffer, offerQuantity) (quantityAfter
 privateTotalPrice :: Cart -> TotalPrice
 privateTotalPrice cart = TotalPrice $ foldWithKey accumulatePrice 0.0 (products cart)
 
-accumulatePrice :: Prd -> Int -> Decimal -> Decimal
+accumulatePrice :: Product -> Int -> Decimal -> Decimal
 accumulatePrice product quantity accumulator =
-  accumulator + ((fromIntegral quantity) * (rate (prd product)))
+  accumulator + ((fromIntegral quantity) * (price product))
 
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
