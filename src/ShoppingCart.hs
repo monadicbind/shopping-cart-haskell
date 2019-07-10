@@ -99,8 +99,8 @@ addRelevantQuantities :: Product
                       -> (Map Product Int, Map Product Int)
                       -> (Map Product Int, Map Product Int)
 addRelevantQuantities product (quantityAfterOffer, offerQuantity) (quantityAfterOfferMap, offerQuantityMap) =
-  ( (insert product quantityAfterOffer quantityAfterOfferMap)
-  , (insert product offerQuantity offerQuantityMap))
+  ( insert product quantityAfterOffer quantityAfterOfferMap
+  , insert product offerQuantity offerQuantityMap)
 
 --  | off (prd product) == Nothing = True
 --  | otherwise = let offer = case (off (prd product)) of
@@ -108,8 +108,7 @@ privateTotalPrice :: Cart -> TotalPrice
 privateTotalPrice cart = TotalPrice $ foldWithKey accumulatePrice 0.0 (products cart)
 
 accumulatePrice :: Product -> Int -> Decimal -> Decimal
-accumulatePrice product quantity accumulator =
-  accumulator + ((fromIntegral quantity) * (price product))
+accumulatePrice product quantity accumulator = accumulator + (fromIntegral quantity * price product)
 
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
