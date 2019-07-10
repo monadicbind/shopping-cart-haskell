@@ -22,9 +22,9 @@ spec =
     describe "Adding 5 DoveSoaps to an emptycart" $
       it " return a cart with 5 dove soaps" $ do
         let emptyCart = createAnEmptyCart
-        let doveProduct = createAProduct "Dove Soap" 39.99 Nothing
-        let quantity = 5
-        let newCart = addProducts emptyCart doveProduct quantity
+            doveProduct = createAProduct "Dove Soap" 39.99 Nothing
+            quantity = 5
+            newCart = addProducts emptyCart doveProduct quantity
         numberOfProducts newCart `shouldBe` quantity
         (getTotalPriceWithTax . getTotPriceWTax) (totalPriceWithTaxes newCart 0) `shouldBe` 199.95
     describe "Adding 5 DoveSoaps and add 3 more to an emptycart" $
