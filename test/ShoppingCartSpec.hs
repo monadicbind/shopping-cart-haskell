@@ -3,6 +3,7 @@ module ShoppingCartSpec
   ) where
 
 import Data.Decimal
+import Product
 import ShoppingCart
 import Test.Hspec
 import Test.QuickCheck
