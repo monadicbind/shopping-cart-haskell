@@ -20,7 +20,6 @@ module ShoppingCart
   , CartPrice(..)
   , Offer(..)
   , ApplyOffer(..)
-  , applyOffer
   , Cart(..)
   ) where
 
@@ -149,21 +148,6 @@ applyOffersToProducts
   => Cart a -> Map (Product a) (Decimal, Decimal)
 applyOffersToProducts cart = mapWithKey applyOffer (products cart)
 
-{-
-calculateCorrectQuantities :: Product -> Int -> (Decimal, Decimal)
-calculateCorrectQuantities (Product _ cost Nothing) quantity = (fromIntegral quantity * cost, 0)
-calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYFree x y))) quantity =
-  let offerQuantity = div quantity (x + y)
-      quantityAfterOffer = quantity - offerQuantity
-  in (fromIntegral quantityAfterOffer * rate, fromIntegral offerQuantity * rate)
-calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYPercentOff x y))) quantity =
-  let offerQuantity = div quantity (x + 1)
-      quantityAfterOffer = quantity - offerQuantity
-      discountedPrice = fromIntegral offerQuantity * rate * (y / 100)
-      remainingPriceToBePaid = fromIntegral offerQuantity * rate * ((100 - y) / 100)
-      totalPriceAfterDiscounts = fromIntegral quantityAfterOffer * rate + remainingPriceToBePaid
-  in (totalPriceAfterDiscounts, discountedPrice)
--}
 accumulatePrice
   :: ApplyOffer a
   => Product a -> Int -> Decimal -> Decimal
