@@ -1,10 +1,14 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneDeriving #-}
 
 module ShoppingCart
   ( createAProduct
   , createAnEmptyCart
+  , name
+  , price
   , numberOfProducts
   , addProducts
   , totalPriceWithTaxes
@@ -14,6 +18,8 @@ module ShoppingCart
   , TotalPriceWithTax(..)
   , CartPrice(..)
   , Offer(..)
+  , ApplyOffer(..)
+  , Cart(..)
   ) where
 
 import Data.Decimal
@@ -33,13 +39,53 @@ instance Hashable Offer
 instance Hashable Decimal where
   hashWithSalt s x = s + hash (decimalMantissa x)
 
-data Product = Product
-  { name :: String
-  , price :: Decimal
-  , offer :: Maybe Offer
-  } deriving (Show, Generic, Eq, Ord)
+class ApplyOffer a where
+  applyOffer :: Product a -> Int -> (Decimal, Decimal)
 
-instance Hashable Product
+instance ApplyOffer Offer where
+  applyOffer :: Product Offer -> Int -> (Decimal, Decimal)
+  applyOffer (Product _ cost Nothing) quantity = (fromIntegral quantity * cost, 0)
+  applyOffer product@(Product _ rate (Just (BuyXGetYFree x y))) quantity =
+    let offerQuantity = div quantity (x + y)
+        quantityAfterOffer = quantity - offerQuantity
+    in (fromIntegral quantityAfterOffer * rate, fromIntegral offerQuantity * rate)
+  applyOffer product@(Product _ rate (Just (BuyXGetYPercentOff x y))) quantity =
+    let offerQuantity = div quantity (x + 1)
+        quantityAfterOffer = quantity - offerQuantity
+        discountedPrice = fromIntegral offerQuantity * rate * (y / 100)
+        remainingPriceToBePaid = fromIntegral offerQuantity * rate * ((100 - y) / 100)
+        totalPriceAfterDiscounts = fromIntegral quantityAfterOffer * rate + remainingPriceToBePaid
+    in (totalPriceAfterDiscounts, discountedPrice)
+
+data Product a where
+        Product ::
+            ApplyOffer a => String -> Decimal -> Maybe a -> Product a
+
+deriving instance Show (Product Offer)
+
+instance ApplyOffer a =>
+         Eq (Product a) where
+  (==) :: Product a -> Product a -> Bool
+  (==) (Product name _ _) (Product another _ _) = (==) name another
+
+instance ApplyOffer a =>
+         Ord (Product a) where
+  (<=) :: Product a -> Product a -> Bool
+  (<=) (Product name _ _) (Product anotherName _ _) = (<=) name anotherName
+
+instance ApplyOffer a =>
+         Hashable (Product a) where
+  hashWithSalt s (Product name _ _) = s + hash name
+
+name
+  :: ApplyOffer a
+  => Product a -> String
+name (Product n _ _) = n
+
+price
+  :: ApplyOffer a
+  => Product a -> Decimal
+price (Product _ p _) = p
 
 newtype TaxAmount = TaxAmount
   { getTaxAmount :: Decimal
@@ -60,50 +106,58 @@ data CartPrice = CartPrice
   , getTotalDiscountPrice :: Decimal
   } deriving (Show)
 
-createAProduct :: String -> Decimal -> Maybe Offer -> Product
+createAProduct
+  :: ApplyOffer a
+  => String -> Decimal -> Maybe a -> Product a
 createAProduct = Product
 
-newtype Cart = Cart
-  { products :: Map Product Int
-  } deriving (Show)
+data Cart a where
+        Cart :: ApplyOffer a => Map (Product a) Int -> Cart a
 
-createAnEmptyCart :: Cart
+deriving instance Show (Cart Offer)
+
+products
+  :: ApplyOffer a
+  => Cart a -> Map (Product a) Int
+products (Cart mp) = mp
+
+createAnEmptyCart
+  :: ApplyOffer a
+  => Cart a
 createAnEmptyCart = Cart empty
 
-numberOfProducts :: Cart -> Int
+numberOfProducts
+  :: ApplyOffer a
+  => Cart a -> Int
 numberOfProducts = sum . elems . products
 
-updateProductQuantity :: Product -> Int -> Int -> Int
+updateProductQuantity
+  :: ApplyOffer a
+  => Product a -> Int -> Int -> Int
 updateProductQuantity prd newQuantity oldQuantity = newQuantity + oldQuantity
 
-addProducts :: Cart -> Product -> Int -> Cart
+addProducts
+  :: ApplyOffer a
+  => Cart a -> Product a -> Int -> Cart a
 addProducts cart product quantity =
   Cart (insertWithKey updateProductQuantity product quantity (products cart))
 
-applyOffersToProducts :: Cart -> Map Product (Decimal, Decimal)
-applyOffersToProducts cart = mapWithKey calculateCorrectQuantities (products cart)
+applyOffersToProducts
+  :: ApplyOffer a
+  => Cart a -> Map (Product a) (Decimal, Decimal)
+applyOffersToProducts cart = mapWithKey applyOffer (products cart)
 
-calculateCorrectQuantities :: Product -> Int -> (Decimal, Decimal)
-calculateCorrectQuantities (Product _ cost Nothing) quantity = (fromIntegral quantity * cost, 0)
-calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYFree x y))) quantity =
-  let offerQuantity = div quantity (x + y)
-      quantityAfterOffer = quantity - offerQuantity
-  in (fromIntegral quantityAfterOffer * rate, fromIntegral offerQuantity * rate)
-calculateCorrectQuantities product@(Product _ rate (Just (BuyXGetYPercentOff x y))) quantity =
-  let offerQuantity = div quantity (x + 1)
-      quantityAfterOffer = quantity - offerQuantity
-      discountedPrice = fromIntegral offerQuantity * rate * (y / 100)
-      remainingPriceToBePaid = fromIntegral offerQuantity * rate * ((100 - y) / 100)
-      totalPriceAfterDiscounts = fromIntegral quantityAfterOffer * rate + remainingPriceToBePaid
-  in (totalPriceAfterDiscounts, discountedPrice)
-
-accumulatePrice :: Product -> Int -> Decimal -> Decimal
+accumulatePrice
+  :: ApplyOffer a
+  => Product a -> Int -> Decimal -> Decimal
 accumulatePrice product quantity accumulator = accumulator + (fromIntegral quantity * price product)
 
 privateTaxAmount :: TotalPrice -> Decimal -> TaxAmount
 privateTaxAmount (TotalPrice totPrc) tax = TaxAmount (roundTo 2 $ (totPrc * tax) / 100)
 
-totalPriceWithTaxes :: Cart -> Decimal -> CartPrice
+totalPriceWithTaxes
+  :: ApplyOffer a
+  => Cart a -> Decimal -> CartPrice
 totalPriceWithTaxes cart tax =
   let (totalPriceAfterDiscounts, totalDiscountedPrice) =
         foldl (<>) (0.0, 0.0) (elems (applyOffersToProducts cart))
