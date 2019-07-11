@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE StandaloneDeriving #-}
 
 module ShoppingCart
   ( createAnEmptyCart
