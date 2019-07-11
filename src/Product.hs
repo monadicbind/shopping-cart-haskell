@@ -23,7 +23,7 @@ data Offer
                 ,  y :: Int}
   | BuyXGetYPercentOff { x :: Int
                       ,  percent :: Decimal}
-  deriving (Show, Generic, Eq, Ord)
+  deriving (Generic, Eq, Ord)
 
 instance Hashable Offer
 
@@ -51,8 +51,6 @@ instance ApplyOffer Offer where
 data Product a where
         Product ::
             ApplyOffer a => String -> Decimal -> Maybe a -> Product a
-
-deriving instance Show (Product Offer)
 
 instance ApplyOffer a =>
          Eq (Product a) where

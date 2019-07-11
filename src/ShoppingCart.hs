@@ -23,27 +23,25 @@ import Product
 
 newtype TaxAmount = TaxAmount
   { getTaxAmount :: Decimal
-  } deriving (Show)
+  }
 
 newtype TotalPrice = TotalPrice
   { getTotalPrice :: Decimal
-  } deriving (Show)
+  }
 
 newtype TotalPriceWithTax = TotalPriceWithTax
   { getTotalPriceWithTax :: Decimal
-  } deriving (Show)
+  }
 
 data CartPrice = CartPrice
   { getTotPriceWTax :: TotalPriceWithTax
   , getTotPrice :: TotalPrice
   , getTax :: TaxAmount
   , getTotalDiscountPrice :: Decimal
-  } deriving (Show)
+  }
 
 data Cart a where
         Cart :: ApplyOffer a => Map (Product a) Int -> Cart a
-
-deriving instance Show (Cart Offer)
 
 products
   :: ApplyOffer a
