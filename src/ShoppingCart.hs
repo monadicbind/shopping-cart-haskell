@@ -3,7 +3,6 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE ExistentialQuantification #-}
 
 module ShoppingCart
   ( createAProduct
